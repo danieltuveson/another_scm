@@ -56,16 +56,59 @@ struct PString *read(void)
     return pstr;
 }
 
-void print( /* should take a scheme value */ )
+void print(struct Value *v, int newline)
 {
+    if (v == NULL)
+    {
+        printf("Error, cannot print NULL value\n");
+        return;
+    }
+    switch (v->type)
+    {
+    case LIST:
+        printf("(");
+        for (unsigned int i = 0; i < v->list->size; i++)
+        {
+            print(v, 0);
+            if (i < (v->list->size-1)) 
+                printf(" ");
+        }
+        printf(")");
+        break;
+    case STRING:
+        printf("\"%s\"", from_vstring(v));
+        break;
+    case SYMBOL:
+        printf("%s", v->symbol);
+        break;
+    case CHAR:
+        printf("#\\%c", v->character);
+        break;
+    case NUMBER:
+        printf("%f", v->number);
+        break;
+    case BOOLEAN:
+        if (v->boolean)
+            printf("#t");
+        else
+            printf("#f");
+        break;
+    case EXPRESSION:
+        printf("PRINT NOT IMPLEMENTED");
+        break;
+    }
+    if (newline) printf("\n");
 }
 
 void repl()
 {
+    printf("Entering Scheme interpreter. Type Ctrl+D to exit\n");
     struct PString *pstr;
     struct Parser p;
     struct Environment env;
-    enum Error err;
+    struct Value *v;
+
+    init_env(&env, NULL);
 
     while (1)
     {
@@ -73,15 +116,21 @@ void repl()
         pstr = read();
         init_parser(&p, pstr);
         parse(&p);
-        if (p->error != NO_ERROR)
+        if (p.error != NO_ERROR)
         {
             printf("Error row %u, column %u: %s\n", 
                     p.row, p.column,
                     parse_error_to_string(p.error));
             continue;
         }
-        eval(env, err, parser->value)
-        if (eval(p->value
+        v = eval(&env, &p, p.value);
+        if (p.error != NO_ERROR)
+        {
+            printf("Error while executing: %s\n",
+                    parse_error_to_string(p.error));
+            continue;
+        }
+        if (v != NULL) print(v, true);
     }
 }
 

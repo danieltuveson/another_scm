@@ -65,7 +65,7 @@ char *from_vstring(struct Value *vstr);
 /* Gets value from specified index (null if index out of bounds) */
 static inline struct Value *list_lookup(struct List *lst, unsigned int index)
 {
-    return (index > lst->size ? NULL : lst->values[lst->size]);
+    return (index >= lst->size ? NULL : lst->values[index]);
 }
 
 /* Sugar for checking if a list is empty */

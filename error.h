@@ -5,6 +5,8 @@
 enum Error
 {
     NO_ERROR,
+
+    /* parse errors */
     NO_NEWLINE_IN_STRING,
     UNKNOWN_ESCAPE_SEQUENCE,
     UNTERMINATED_STRING,
@@ -19,8 +21,17 @@ enum Error
     EXTRA_PARENS,
     UNEXPECTED_END_OF_LIST,
     EXPECTED_OPEN_PAREN,
+
+    /* eval errors */ 
     FIRST_NOT_SYMBOL,
-    UNDEFINED_VARIABLE
+    UNDEFINED_VARIABLE,
+    INCORRECT_NUMBER_OF_ARGS,
+    SYMBOL_NOT_BOUND,
+
+    /* type errors */
+    EXPECTED_SYMBOL,
+    EXPECTED_BOOLEAN,
+    EXPECTED_NUMBER
 };
 
 /* Convert Error to friendly error message */
@@ -30,6 +41,8 @@ static inline char *parse_error_to_string(enum Error e)
     {
         case NO_ERROR:
             return "no error";
+
+        /* parse errors */
         case NO_NEWLINE_IN_STRING:
             return "newlines are not allowed in string literals";
         case UNKNOWN_ESCAPE_SEQUENCE:
@@ -58,10 +71,24 @@ static inline char *parse_error_to_string(enum Error e)
              return "unexpected end of list";
         case EXPECTED_OPEN_PAREN:
              return "expected openning parenthesis";
+
+        /* eval errors */
         case FIRST_NOT_SYMBOL:
              return "first element of proceedure must be a symbol";
         case UNDEFINED_VARIABLE:
              return "variable is undefined";
+        case INCORRECT_NUMBER_OF_ARGS:
+             return "incorrect number of arguments passed to proceedure";
+        case SYMBOL_NOT_BOUND:
+             return "symbol is not bound to a value";
+
+        /* type errors */
+        case EXPECTED_SYMBOL:
+             return "expected symbol";
+        case EXPECTED_BOOLEAN:
+             return "expected boolean";
+        case EXPECTED_NUMBER:
+             return "expected a numeric value";
     }
 }
 

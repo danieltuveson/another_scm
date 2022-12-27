@@ -1,154 +1,252 @@
+#include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "error.h"
+#include "parser.h"
 #include "datatype.h"
 #include "eval.h"
-#define INIT_ENV_SIZE 4
 
-// enum Type
-// {
-//     LIST,
-//     SYMBOL,
-//     CHAR,
-//     NUMBER,
-//     STRING,
-//     BOOLEAN,
-//     EXPRESSION
-// };
-// 
-// struct Value
-// {
-//     enum Type type;
-//     union
-//     {
-//         struct List *list;
-//         char *symbol;
-//         char character;
-//         double number;
-//         struct List *string;
-//         bool boolean;
-//         struct List *expression;
-//     };
-// };
-// 
-// struct List 
-// {
-//     unsigned int size;
-//     unsigned int capacity;
-//     struct Value **values;
-// };
+// Probably fine if val is NULL, but symbol must be a symbol
+void new_var(Binding *bind, struct Value *symbol, struct Value *val)
+{
+    assert(symbol->type == SYMBOL);
 
-// struct Variable
-// {
-//     char *name;
-//     struct Value *value;
-// };
-// 
-// struct VariableList
-// {
-//     struct Variable *var;
-//     struct VariableList *next;
-// };
-// 
-// struct Environment
-// {
-//     struct VariableList *varlist;
-//     struct Environment *parent;
-// };
+    bind->type = LIST;
+    bind->list = list();
+
+    append(bind->list, symbol);
+    append(bind->list, val);
+}
 
 void init_env(struct Environment *env, struct Environment *parent)
 {
-    env->varlist = NULL;
+    env->bindings = list();
     env->parent = parent;
 }
 
-void init_varlist(struct VariableList *varlist)
+void new_env(struct Environment *parent)
 {
-    varlist->var = NULL;
-    varlist->next = NULL;
+    struct Environment *env = malloc(sizeof(*env));
+    init_env(env, parent);
 }
 
-// struct Value *list_lookup(struct VariableList
-struct Value *eval(struct Environment *env, enum Error *error, struct Value *val);
-
-struct Value *lookup(struct Environment *env, char *name)
+void push_var(Bindings *bindings, Binding *bind)
 {
-    // for (struct Variable *var = env->
-    return NULL;
+    append(bindings, bind);
 }
 
-void define(struct VariableList *varlist, struct Variable *var)
+// TODO: need to replace existing variable with name of symbol if it exists in this scope
+void define(struct Environment *env, struct Value *symbol, struct Value *val)
 {
-    if (varlist->var == NULL)
-    {
-        varlist->var = var;
-    }
-    else
-    {
-        struct VariableList *new_varlist = malloc(sizeof(*new_varlist));
-        init_varlist(new_varlist);
-        varlist->var = var;
-        varlist->next = new_varlist;
-    }
+    Binding *bind = malloc(sizeof(*bind));
+    new_var(bind, symbol, val);
+    append(env->bindings, bind);
 }
 
-struct Value *eval_symbol(struct Environment *env, enum Error *error, char *symbol)
+static inline char *get_name(Binding *b)
 {
-    struct Value *someval = lookup(env, symbol);
-    if (someval == NULL)
-    {
-        // *error = NO_ERROR;
-        return NULL;
-    }
-    return eval(env, error, someval);
+    return b->list->values[0]->symbol;
 }
 
-struct Value *eval_list(struct Environment *env, enum Error *error, struct List *lst)
+static inline struct Value *get_value(Binding *b)
 {
-    if (is_empty(lst))
+    return b->list->values[1];
+}
+
+// TODO: Update this to look at parent environment
+// This function looks for variable with the given name
+struct Value *lookup_var(struct Environment *env, char *lname)
+{
+    if (is_empty(env->bindings))
     {
-        return NULL;
-    }
-    struct Value *first = list_lookup(lst, 0);
-    if (first != NULL)
-    {
-        // If first is not a symbol, return error
-        if (first->type != SYMBOL)
+        if (env->parent == NULL)
         {
-            *error = FIRST_NOT_SYMBOL;
             return NULL;
-        }
-        else if (strcmp(first->symbol, "define") == 0)
-        {
-            // handle define
-        }
-        else if (strcmp(first->symbol, "lambda") == 0)
-        {
-            // handle lambda
-        }
-        else if (strcmp(first->symbol, "if") == 0)
-        {
-            // handle if
         }
         else
         {
-            *error = UNDEFINED_VARIABLE;
-            return NULL;
+            return lookup_var(env->parent, lname);
+        }
+    }
+    char *name;
+    Bindings *binds = env->bindings;
+
+    for (unsigned int i = 0; i < binds->size; i++)
+    {
+        // Found variable with this name
+        name = get_name(binds->values[i]);
+        if (strcmp(name, lname) == 0)
+        {
+            return get_value(binds->values[i]);
         }
     }
     return NULL;
 }
 
-struct Value *eval(struct Environment *env, enum Error *error, struct Value *val)
+void add_scope(Bindings *bindings, Binding *bind)
+{
+}
+
+struct Value *eval_symbol(struct Environment *env, struct Parser *parser, char *symbol)
+{
+    struct Value *val = lookup_var(env, symbol);
+    if (val == NULL) parser->error = SYMBOL_NOT_BOUND;
+    return val;
+}
+
+void eval_define(struct Environment *env, struct Parser *parser, struct List *lst)
+{
+    if (lst->size != 3)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return;
+    }
+    struct Value *name = list_lookup(lst, 1);
+    if (name->type != SYMBOL)
+    {
+        parser->error = EXPECTED_SYMBOL;
+        return;
+    }
+    struct Value *val = eval(env, parser, list_lookup(lst, 2));
+    if (parser->error != NO_ERROR)
+    {
+        return;
+    }
+    define(env, name, val);
+}
+
+struct Value *eval_add(struct Environment *env, struct Parser *parser, struct List *lst)
+{
+    struct Value *val;
+    double sum = 0;
+    for (unsigned int i = 1; i < lst->size; i++)
+    {
+        val = eval(env, parser, list_lookup(lst, i));
+        if (val->type != NUMBER)
+        {
+            parser->error = EXPECTED_NUMBER;
+            return NULL;
+        }
+        sum += val->number;
+    }
+    return vnumber(sum);
+}
+
+struct Value *eval_subtract(struct Environment *env, struct Parser *parser, struct List *lst)
+{
+    struct Value *val;
+    if (lst->size == 1)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    val = eval(env, parser, list_lookup(lst, 1));
+    if (val->type != NUMBER)
+    {
+        parser->error = EXPECTED_NUMBER;
+        return NULL;
+    }
+    else if (lst->size == 2)
+    {
+        // if only one value passed to '-', then it's a unary '-'
+        return vnumber((-1) * val->number);
+    }
+    double sum = val->number;
+    for (unsigned int i = 2; i < lst->size; i++)
+    {
+        val = eval(env, parser, list_lookup(lst, i));
+        if (val->type != NUMBER)
+        {
+            parser->error = EXPECTED_NUMBER;
+            return NULL;
+        }
+        sum -= val->number;
+    }
+    return vnumber(sum);
+}
+
+struct Value *eval_list(struct Environment *env, struct Parser *parser, struct List *lst)
+{
+    if (is_empty(lst))
+    {
+        // should throw error or something
+        return NULL;
+    }
+    struct Value *first = list_lookup(lst, 0);
+    if (first == NULL)
+    {
+        return NULL;
+    }
+    else if (first->type != SYMBOL)
+    {
+        parser->error = FIRST_NOT_SYMBOL;
+        return NULL;
+    }
+    else if (strcmp(first->symbol, "define") == 0)
+    {
+        eval_define(env, parser, lst);
+        return NULL;
+    }
+    else if (strcmp(first->symbol, "+") == 0)
+    {
+        return eval_add(env, parser, lst);
+    }
+    else if (strcmp(first->symbol, "-") == 0)
+    {
+        return eval_subtract(env, parser, lst);
+    }
+    else if (strcmp(first->symbol, "lambda") == 0)
+    {
+        // handle lambda
+    }
+    else if (strcmp(first->symbol, "if") == 0)
+    {
+        struct Value *val;
+        if (lst->size == 2)
+        {
+            val = eval(env, parser, list_lookup(lst, 1));
+            if (val->type != BOOLEAN)
+            {
+                parser->error = EXPECTED_BOOLEAN;
+                return NULL;
+            }
+            else if (val->boolean == true)
+            {
+                return eval(env, parser, list_lookup(lst, 2));
+            }
+            else
+            {
+                return eval(env, parser, list_lookup(lst, 3));
+            }
+        }
+        else if (lst->size == 3)
+        {
+        }
+        else
+        {
+            parser->error = INCORRECT_NUMBER_OF_ARGS;
+            return NULL;
+        }
+    }
+    else
+    {
+        parser->error = UNDEFINED_VARIABLE;
+        return NULL;
+    }
+}
+
+struct Value *eval(struct Environment *env, struct Parser *parser, struct Value *val)
 {
     switch (val->type)
     {
         case LIST:
-            return eval_list(env, error, val->list);
+            return eval_list(env, parser, val->list);
         case SYMBOL:
-            return eval_symbol(env, error, val->symbol);
+            return eval_symbol(env, parser, val->symbol);
         case EXPRESSION:
+            printf("I don't think we'll actually ever use this?\n");
             return NULL;
-        //     return eval(env, error, val->expression);
+        //     return eval(env, parser, val->expression);
         case CHAR:
         case NUMBER:
         case STRING:
