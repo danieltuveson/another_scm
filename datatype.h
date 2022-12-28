@@ -5,6 +5,7 @@
 
 /* Constants */
 #define MAXIMUM_SYMBOL_LENGTH 255
+
 /* Data structures */
 
 enum Type
