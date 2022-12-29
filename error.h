@@ -31,7 +31,11 @@ enum Error
     /* type errors */
     EXPECTED_SYMBOL,
     EXPECTED_BOOLEAN,
-    EXPECTED_NUMBER
+    EXPECTED_NUMBER,
+    EXPECTED_CHAR,
+    EXPECTED_PROC,
+    EXPECTED_STRING,
+    EXPECTED_LIST
 };
 
 /* Convert Error to friendly error message */
@@ -89,6 +93,14 @@ static inline char *parse_error_to_string(enum Error e)
              return "expected boolean";
         case EXPECTED_NUMBER:
              return "expected a numeric value";
+        case EXPECTED_CHAR:
+             return "expected a character";
+        case EXPECTED_STRING:
+             return "expected a string";
+        case EXPECTED_LIST:
+             return "expected a list";
+        case EXPECTED_PROC:
+             return "expected a procedure";
     }
 }
 

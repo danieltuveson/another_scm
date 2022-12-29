@@ -165,6 +165,35 @@ struct Value *eval_subtract(struct Environment *env, struct Parser *parser, stru
     return vnumber(sum);
 }
 
+struct Value *eval_if(struct Environment *env, struct Parser *parser, struct List *lst)
+{
+    if (lst->size < 3 || lst->size > 4)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+
+    struct Value *val;
+    val = eval(env, parser, list_lookup(lst, 1));
+    if (val->type != BOOLEAN)
+    {
+        parser->error = EXPECTED_BOOLEAN;
+        return NULL;
+    }
+    else if (val->boolean == true)
+    {
+        return eval(env, parser, list_lookup(lst, 2));
+    }
+    else if (lst->size == 4)
+    {
+        return eval(env, parser, list_lookup(lst, 3));
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
 struct Value *eval_list(struct Environment *env, struct Parser *parser, struct List *lst)
 {
     if (is_empty(lst))
@@ -197,36 +226,24 @@ struct Value *eval_list(struct Environment *env, struct Parser *parser, struct L
     }
     else if (strcmp(first->symbol, "lambda") == 0)
     {
-        // handle lambda
-    }
-    else if (strcmp(first->symbol, "if") == 0)
-    {
-        struct Value *val;
-        if (lst->size == 2)
-        {
-            val = eval(env, parser, list_lookup(lst, 1));
-            if (val->type != BOOLEAN)
-            {
-                parser->error = EXPECTED_BOOLEAN;
-                return NULL;
-            }
-            else if (val->boolean == true)
-            {
-                return eval(env, parser, list_lookup(lst, 2));
-            }
-            else
-            {
-                return eval(env, parser, list_lookup(lst, 3));
-            }
-        }
-        else if (lst->size == 3)
-        {
-        }
-        else
+        if (lst->size != 3)
         {
             parser->error = INCORRECT_NUMBER_OF_ARGS;
             return NULL;
         }
+        struct Value *args, *body;
+        args = list_lookup(lst, 1);
+        body = list_lookup(lst, 2);
+        if (args->type != LIST)
+        {
+            parser->error = EXPECTED_LIST;
+            return NULL;
+        }
+        return NULL;
+    }
+    else if (strcmp(first->symbol, "if") == 0)
+    {
+        return eval_if(env, parser, lst);
     }
     else
     {
@@ -243,7 +260,7 @@ struct Value *eval(struct Environment *env, struct Parser *parser, struct Value 
             return eval_list(env, parser, val->list);
         case SYMBOL:
             return eval_symbol(env, parser, val->symbol);
-        case EXPRESSION:
+        case PROCEDURE:
             printf("I don't think we'll actually ever use this?\n");
             return NULL;
         //     return eval(env, parser, val->expression);

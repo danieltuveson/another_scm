@@ -93,7 +93,7 @@ void print(struct Value *v, int newline)
         else
             printf("#f");
         break;
-    case EXPRESSION:
+    case PROCEDURE:
         printf("PRINT NOT IMPLEMENTED");
         break;
     }

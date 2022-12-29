@@ -16,7 +16,7 @@ enum Type
     NUMBER,
     STRING,
     BOOLEAN,
-    EXPRESSION
+    PROCEDURE
 };
 
 struct Value
@@ -30,7 +30,7 @@ struct Value
         double number;
         struct List *string;
         bool boolean;
-        struct List *expression;
+        struct List *proc;
     };
 };
 

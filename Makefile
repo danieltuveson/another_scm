@@ -1,17 +1,10 @@
 
-CFLAGS_DEBUG = -std=c99 -Wall -Wextra -g
-CFLAGS_PROD = -std=c99 -O2
+CFLAGS = -std=c99 -Wall -Wextra -g
 
 OBJECTS = utils.o repl.o datatype.o parser.o eval.o
 
-debug : main.o $(OBJECTS)
-	cc $(CFLAGS_DEBUG) -o scheme_debug main.o $(OBJECTS)
-
-prod : main.o $(OBJECTS)
-	cc $(CFLAGS_PROD) -o scheme main.o $(OBJECTS)
-
-test : test.o $(OBJECTS)
-	cc $(CFLAGS_TEST) -o test test.o $(OBJECTS) && ./test
+scheme : main.o $(OBJECTS)
+	cc $(CFLAGS) -o scheme main.o $(OBJECTS)
 
 datatype.o : datatype.h
 eval.o : datatype.h error.h
