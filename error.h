@@ -27,6 +27,7 @@ enum Error
     UNDEFINED_VARIABLE,
     INCORRECT_NUMBER_OF_ARGS,
     SYMBOL_NOT_BOUND,
+    UNDEFINED,
 
     /* type errors */
     EXPECTED_SYMBOL,
@@ -85,6 +86,8 @@ static inline char *parse_error_to_string(enum Error e)
              return "incorrect number of arguments passed to proceedure";
         case SYMBOL_NOT_BOUND:
              return "symbol is not bound to a value";
+        case UNDEFINED:
+             return "expression returned undefined";
 
         /* type errors */
         case EXPECTED_SYMBOL:

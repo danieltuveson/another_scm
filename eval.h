@@ -39,4 +39,25 @@ struct Value *eval(struct Environment *env, struct Parser *parser, struct Value 
  * If no parent environment exists, pass in NULL for parent */
 void init_env(struct Environment *env, struct Environment *parent);
 
+/* Utility functions */
+
+/* helper functions for handling bindings */
+static inline char *get_name(Binding *b)
+{
+    return b->list->values[0]->symbol;
+}
+
+static inline struct Value *get_value(Binding *b)
+{
+    return b->list->values[1];
+}
+
+static inline void push_var(Bindings *bindings, Binding *bind)
+{
+    append(bindings, bind);
+}
+
+
+
+
 #endif

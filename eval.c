@@ -30,9 +30,36 @@ void new_env(struct Environment *parent)
     init_env(env, parent);
 }
 
-void push_var(Bindings *bindings, Binding *bind)
+/* Does boilerplate error checking for when we expect eval to return a value */
+struct Value *checked_eval(struct Environment *env, struct Parser *parser, struct Value *val)
 {
-    append(bindings, bind);
+    struct Value *eval_result = eval(env, parser, val);
+    if (parser->error != NO_ERROR)
+    {
+        return NULL;
+    }
+    else if (eval_result == NULL)
+    {
+        parser->error = UNDEFINED;
+        return NULL;
+    }
+    return eval_result;
+}
+struct Value *checked_typed_eval(
+        struct Environment *env, struct Parser *parser, 
+        struct Value *val, enum Type t, enum Error err)
+{
+    struct Value *eval_result = checked_eval(env, parser, val);
+    if (eval_result == NULL)
+    {
+        return NULL;
+    }
+    else if (eval_result->type != t)
+    {
+        parser->error = err;
+        return NULL;
+    }
+    return eval_result;
 }
 
 // TODO: need to replace existing variable with name of symbol if it exists in this scope
@@ -41,16 +68,6 @@ void define(struct Environment *env, struct Value *symbol, struct Value *val)
     Binding *bind = malloc(sizeof(*bind));
     new_var(bind, symbol, val);
     append(env->bindings, bind);
-}
-
-static inline char *get_name(Binding *b)
-{
-    return b->list->values[0]->symbol;
-}
-
-static inline struct Value *get_value(Binding *b)
-{
-    return b->list->values[1];
 }
 
 // TODO: Update this to look at parent environment
@@ -83,6 +100,7 @@ struct Value *lookup_var(struct Environment *env, char *lname)
     return NULL;
 }
 
+// TODO: Implement
 void add_scope(Bindings *bindings, Binding *bind)
 {
 }
@@ -107,11 +125,9 @@ void eval_define(struct Environment *env, struct Parser *parser, struct List *ls
         parser->error = EXPECTED_SYMBOL;
         return;
     }
-    struct Value *val = eval(env, parser, list_lookup(lst, 2));
-    if (parser->error != NO_ERROR)
-    {
-        return;
-    }
+    struct Value *val = checked_eval(env, parser, list_lookup(lst, 2));
+    if (val == NULL) return;
+
     define(env, name, val);
 }
 
@@ -121,12 +137,9 @@ struct Value *eval_add(struct Environment *env, struct Parser *parser, struct Li
     double sum = 0;
     for (unsigned int i = 1; i < lst->size; i++)
     {
-        val = eval(env, parser, list_lookup(lst, i));
-        if (val->type != NUMBER)
-        {
-            parser->error = EXPECTED_NUMBER;
-            return NULL;
-        }
+        val = list_lookup(lst, i);
+        val = checked_typed_eval(env, parser, val, NUMBER, EXPECTED_NUMBER);
+        if (val == NULL) return NULL;
         sum += val->number;
     }
     return vnumber(sum);
@@ -140,10 +153,10 @@ struct Value *eval_subtract(struct Environment *env, struct Parser *parser, stru
         parser->error = INCORRECT_NUMBER_OF_ARGS;
         return NULL;
     }
-    val = eval(env, parser, list_lookup(lst, 1));
-    if (val->type != NUMBER)
+    val = list_lookup(lst, 1);
+    val = checked_typed_eval(env, parser, val, NUMBER, EXPECTED_NUMBER);
+    if (val == NULL) 
     {
-        parser->error = EXPECTED_NUMBER;
         return NULL;
     }
     else if (lst->size == 2)
@@ -154,12 +167,8 @@ struct Value *eval_subtract(struct Environment *env, struct Parser *parser, stru
     double sum = val->number;
     for (unsigned int i = 2; i < lst->size; i++)
     {
-        val = eval(env, parser, list_lookup(lst, i));
-        if (val->type != NUMBER)
-        {
-            parser->error = EXPECTED_NUMBER;
-            return NULL;
-        }
+        val = list_lookup(lst, i);
+        val = checked_typed_eval(env, parser, val, NUMBER, EXPECTED_NUMBER);
         sum -= val->number;
     }
     return vnumber(sum);
@@ -174,10 +183,10 @@ struct Value *eval_if(struct Environment *env, struct Parser *parser, struct Lis
     }
 
     struct Value *val;
-    val = eval(env, parser, list_lookup(lst, 1));
-    if (val->type != BOOLEAN)
+    val = list_lookup(lst, 1);
+    val = checked_typed_eval(env, parser, val, BOOLEAN, EXPECTED_BOOLEAN);
+    if (val == NULL) 
     {
-        parser->error = EXPECTED_BOOLEAN;
         return NULL;
     }
     else if (val->boolean == true)
