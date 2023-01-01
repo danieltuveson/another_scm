@@ -130,5 +130,17 @@ static inline struct Value *vlist(struct List *list)
     return v;
 }
 
+static inline struct Value *vproc(struct Value *args, struct Value *body)
+{
+    struct Value *v = malloc(sizeof(*v));
+    struct List *proc = list();
+    if (v == NULL || proc == NULL) return NULL;
+    v->type = PROCEDURE;
+    v->proc = proc;
+    append(proc, args);
+    append(proc, body);
+    return v;
+}
+
 
 #endif

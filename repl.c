@@ -67,10 +67,11 @@ void print(struct Value *v, int newline)
     {
     case LIST:
         printf("(");
-        for (unsigned int i = 0; i < v->list->size; i++)
+        struct List *l = v->list;
+        for (unsigned int i = 0; i < l->size; i++)
         {
-            print(v, 0);
-            if (i < (v->list->size-1)) 
+            print(l->values[i], 0);
+            if (i < (l->size-1)) 
                 printf(" ");
         }
         printf(")");
@@ -94,7 +95,11 @@ void print(struct Value *v, int newline)
             printf("#f");
         break;
     case PROCEDURE:
-        printf("PRINT NOT IMPLEMENTED");
+        printf("(lambda ");
+        print(v->proc->values[0], 0);
+        printf(" ");
+        print(v->proc->values[1], 0);
+        printf(")");
         break;
     }
     if (newline) printf("\n");

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <float.h>
 #include <assert.h>
 #include "error.h"
 #include "parser.h"
@@ -203,8 +204,63 @@ struct Value *eval_if(struct Environment *env, struct Parser *parser, struct Lis
     }
 }
 
+struct Value *eval_lambda(struct Parser *parser, struct List *lst)
+{
+    if (lst->size != 3)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    struct Value *args, *body;
+    args = list_lookup(lst, 1);
+    body = list_lookup(lst, 2);
+    if (args->type != LIST)
+    {
+        parser->error = EXPECTED_LIST;
+        return NULL;
+    }
+    return vproc(args, body);
+}
+
+enum CompareOp 
+{
+    EQ,
+    LEQ,
+    GEQ,
+    LESS,
+    GREATER,
+};
+
+struct Value *eval_eq_op(struct Environment *env, struct Parser *parser, struct List *lst, enum CompareOp op)
+{
+    if (lst->size == 1)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    struct Value *v;
+    double prev = (op == GEQ || op == GREATER) ? DBL_MAX : -DBL_MAX;
+
+    for (unsigned int i = 1; i < lst->size; i++)
+    {
+        v = checked_typed_eval(env, parser, lst->values[i], NUMBER, EXPECTED_NUMBER);
+        if (v == NULL) return NULL;
+        if ((op == EQ && i != 1 && !(prev == v->number)) ||
+                (op == LEQ && !(prev <= v->number)) ||
+                (op == GEQ && !(prev >= v->number)) ||
+                (op == LESS && !(prev < v->number)) ||
+                (op == GREATER && !(prev > v->number)))
+        {
+            return vboolean(0);
+        }
+        prev = v->number;
+    }
+    return vboolean(1);
+}
+
 struct Value *eval_list(struct Environment *env, struct Parser *parser, struct List *lst)
 {
+#define match(name) (strcmp(first->symbol, (name)) == 0)
     if (is_empty(lst))
     {
         // should throw error or something
@@ -217,40 +273,56 @@ struct Value *eval_list(struct Environment *env, struct Parser *parser, struct L
     }
     else if (first->type != SYMBOL)
     {
-        parser->error = FIRST_NOT_SYMBOL;
+        parser->error = FIRST_NOT_PROC;
         return NULL;
     }
-    else if (strcmp(first->symbol, "define") == 0)
+    else if (match("define"))
     {
         eval_define(env, parser, lst);
         return NULL;
     }
-    else if (strcmp(first->symbol, "+") == 0)
+    else if (match("+"))
     {
         return eval_add(env, parser, lst);
     }
-    else if (strcmp(first->symbol, "-") == 0)
+    else if (match("-"))
     {
         return eval_subtract(env, parser, lst);
     }
-    else if (strcmp(first->symbol, "lambda") == 0)
+    else if (match(">"))
     {
-        if (lst->size != 3)
-        {
-            parser->error = INCORRECT_NUMBER_OF_ARGS;
-            return NULL;
-        }
-        struct Value *args, *body;
-        args = list_lookup(lst, 1);
-        body = list_lookup(lst, 2);
-        if (args->type != LIST)
-        {
-            parser->error = EXPECTED_LIST;
-            return NULL;
-        }
-        return NULL;
+        return eval_eq_op(env, parser, lst, GREATER);
     }
-    else if (strcmp(first->symbol, "if") == 0)
+    else if (match("<"))
+    {
+        return eval_eq_op(env, parser, lst, LESS);
+    }
+    else if (match("="))
+    {
+        return eval_eq_op(env, parser, lst, EQ);
+    }
+    else if (match(">="))
+    {
+        return eval_eq_op(env, parser, lst, GEQ);
+    }
+    else if (match("<="))
+    {
+        return eval_eq_op(env, parser, lst, LEQ);
+    }
+    else if (match("not"))
+    {
+    }
+    else if (match("and"))
+    {
+    }
+    else if (match("or"))
+    {
+    }
+    else if (match("lambda"))
+    {
+        return eval_lambda(parser, lst);
+    }
+    else if (match("if"))
     {
         return eval_if(env, parser, lst);
     }
@@ -259,6 +331,7 @@ struct Value *eval_list(struct Environment *env, struct Parser *parser, struct L
         parser->error = UNDEFINED_VARIABLE;
         return NULL;
     }
+#undef match
 }
 
 struct Value *eval(struct Environment *env, struct Parser *parser, struct Value *val)

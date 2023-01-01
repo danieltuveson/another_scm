@@ -23,7 +23,7 @@ enum Error
     EXPECTED_OPEN_PAREN,
 
     /* eval errors */ 
-    FIRST_NOT_SYMBOL,
+    FIRST_NOT_PROC,
     UNDEFINED_VARIABLE,
     INCORRECT_NUMBER_OF_ARGS,
     SYMBOL_NOT_BOUND,
@@ -78,8 +78,8 @@ static inline char *parse_error_to_string(enum Error e)
              return "expected openning parenthesis";
 
         /* eval errors */
-        case FIRST_NOT_SYMBOL:
-             return "first element of proceedure must be a symbol";
+        case FIRST_NOT_PROC:
+             return "first element of list must be a procedure";
         case UNDEFINED_VARIABLE:
              return "variable is undefined";
         case INCORRECT_NUMBER_OF_ARGS:
