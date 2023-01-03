@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "datatype.h"
+#include "namespace.h"
 #include "parser.h"
 #include "repl.h"
 #include "eval.h"
@@ -110,10 +111,10 @@ void repl()
     printf("Entering Scheme interpreter. Type Ctrl+D to exit\n");
     struct PString *pstr;
     struct Parser p;
-    struct Environment env;
+    struct Namespace nsp;
     struct Value *v;
 
-    init_env(&env, NULL);
+    init_nsp(&nsp, NULL);
 
     while (1)
     {
@@ -128,7 +129,7 @@ void repl()
                     parse_error_to_string(p.error));
             continue;
         }
-        v = eval(&env, &p, p.value);
+        v = eval(&nsp, &p, p.value);
         if (p.error != NO_ERROR)
         {
             printf("Error while executing: %s\n",

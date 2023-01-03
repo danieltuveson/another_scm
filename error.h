@@ -24,7 +24,6 @@ enum Error
 
     /* eval errors */ 
     FIRST_NOT_PROC,
-    UNDEFINED_VARIABLE,
     INCORRECT_NUMBER_OF_ARGS,
     SYMBOL_NOT_BOUND,
     UNDEFINED,
@@ -80,8 +79,6 @@ static inline char *parse_error_to_string(enum Error e)
         /* eval errors */
         case FIRST_NOT_PROC:
              return "first element of list must be a procedure";
-        case UNDEFINED_VARIABLE:
-             return "variable is undefined";
         case INCORRECT_NUMBER_OF_ARGS:
              return "incorrect number of arguments passed to proceedure";
         case SYMBOL_NOT_BOUND:

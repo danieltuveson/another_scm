@@ -75,6 +75,19 @@ static inline bool is_empty(struct List *lst)
     return (lst != NULL && lst->size == 0);
 }
 
+/* Sugar for dealing with procs */
+static inline struct List *get_args(struct Value *v)
+{
+    if (v->type != PROCEDURE) return NULL;
+    return v->proc->values[0]->list;
+}
+
+static inline struct Value *get_body(struct Value *v)
+{
+    if (v->type != PROCEDURE) return NULL;
+    return v->proc->values[1];
+}
+
 /* Sugar for creating heap-allocated values */
 static inline struct Value *vsymbol(char *symbol)
 {
