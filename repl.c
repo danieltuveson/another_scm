@@ -13,11 +13,9 @@
 /* Read-Eval-Print Loop for Scheme interpreter */
 ScmString *read(void)
 {
-    unsigned int i, /*buff_size,*/ parencount;
-    char c; //, *buff;
-    // buff_size = 2000;
+    unsigned int i, parencount;
+    char c;
     parencount = 0;
-    // buff = calloc(buff_size, sizeof(char));
     c = fgetc(stdin);
 
     ScmString *sstr = list();
@@ -29,18 +27,7 @@ ScmString *read(void)
             printf("\nexiting scheme\n");
             exit(0);
         }
-        // if (i == buff_size)
-        // {
-        //     // TODO: get rid of arbitrary limit
-        //     printf("Exceeded maximum size of %d"
-        //             " characters for command line input\n", buff_size);
-        //     return NULL;
-        // }
         append(sstr, vcharacter(c));
-        // else
-        // {
-        //     buff[i] = c;
-        // }
 
         if (c == '(')
         {
