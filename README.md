@@ -32,4 +32,6 @@
 - Make repl interface better (add history for arrow keys to browse)
 - Start building out a standard library
 - Write tests for eval (up until this point, I've been testing in the repl)
-
+- Probably am mutating stuff too much and need to be copying values instead
+- Need to write a garbage collector
+- Need to actually free stuff when I'm done with it

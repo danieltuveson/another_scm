@@ -1,8 +1,8 @@
 #ifndef PARSER
 #define PARSER
 #include <stdlib.h>
-#include "utils.h"
 #include "error.h"
+#include "datatype.h"
 
 /* Parser constants */
 #define PARSE_FAILURE 0
@@ -14,7 +14,7 @@ struct Parser
     unsigned int row;
     unsigned int column;
     unsigned int index;
-    struct PString *input;
+    ScmString *input;
     enum Error error;
     struct Value *value;
 };
@@ -22,8 +22,8 @@ struct Parser
 
 /* Function definitions */
 
-/* Creates a new parser from the given PString */
-void init_parser(struct Parser *parser, struct PString *pstr);
+/* Creates a new parser from the given ScmPString */
+void init_parser(struct Parser *parser, ScmString *pstr);
 
 /* Parses a string token */
 int parse_string(struct Parser *parser);
@@ -56,13 +56,13 @@ static inline void iterrow(struct Parser *p)
 /* Check if there are more characters */
 static inline int has_next(struct Parser *p)
 {
-    return p->index < p->input->length;
+    return p->index < p->input->size;
 }
 
 /* look at next character without changing index */
 static inline char peek(struct Parser *p)
 {
-    return p->input->string[p->index];
+    return list_lookup(p->input, p->index)->character;
 }
 
 static inline int is_space(char c)
@@ -80,7 +80,7 @@ static inline int is_terminal(char c)
  * Assumes that we've checked has_next already */
 static inline char next(struct Parser *p)
 {
-    char c = p->input->string[p->index];
+    char c = list_lookup(p->input, p->index)->character;
     if (c == '\n')
         p->row++;
     else 

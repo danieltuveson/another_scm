@@ -35,7 +35,8 @@ enum Error
     EXPECTED_CHAR,
     EXPECTED_PROC,
     EXPECTED_STRING,
-    EXPECTED_LIST
+    EXPECTED_LIST,
+    EXPECTED_PAIR
 };
 
 /* Convert Error to friendly error message */
@@ -97,6 +98,8 @@ static inline char *parse_error_to_string(enum Error e)
              return "expected a character";
         case EXPECTED_STRING:
              return "expected a string";
+        case EXPECTED_PAIR:
+             return "expected a pair";
         case EXPECTED_LIST:
              return "expected a list";
         case EXPECTED_PROC:

@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include "utils.h"
 #include "error.h"
 #include "datatype.h"
 #include "repl.h"
@@ -21,12 +20,12 @@ void assert_init_parser(struct Parser p, enum Error err, unsigned int row, unsig
 
 void test_parse_list()
 {
-    struct PString *pstr;
+    ScmString *sstr;
     struct Parser p;
 
     // Test simple list
-    pstr = pstring(" ( this  is  4  atoms  )");
-    init_parser(&p, pstr);
+    sstr = to_scm_string(" ( this  is  4  atoms  )");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_list(&p));
@@ -42,8 +41,8 @@ void test_parse_list()
     assert(strcmp(p.value->list->values[3]->symbol, "atoms") == 0);
 
     // Test nested lists
-    pstr = pstring("(this is a (nested ( (list  ) (with) (internal)) sublists))");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("(this is a (nested ( (list  ) (with) (internal)) sublists))");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_list(&p));
@@ -66,12 +65,12 @@ void test_parse_list()
 /* Tests for parsing a symbol */
 void test_parse_symbol()
 {
-    struct PString *pstr;
+    ScmString *sstr;
     struct Parser p;
 
     // Test false
-    pstr = pstring("flippity-floo");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("flippity-floo");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -86,12 +85,12 @@ void test_parse_symbol()
 /* Tests for parsing number values */ 
 void test_parse_number()
 {
-    struct PString *pstr;
+    ScmString *sstr;
     struct Parser p;
 
     // Test positive int
-    pstr = pstring("1234567890");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("1234567890");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -106,12 +105,12 @@ void test_parse_number()
 /* Tests for parsing hash-prefixed values (bools and chars) */ 
 void test_parse_hash()
 {
-    struct PString *pstr;
+    ScmString *sstr;
     struct Parser p;
 
     // Test false
-    pstr = pstring("#f");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#f");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -123,8 +122,8 @@ void test_parse_hash()
     assert(p.value->boolean == 0);
 
     // Test true
-    pstr = pstring("#t");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#t");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -135,8 +134,8 @@ void test_parse_hash()
 
 
     // Test a character
-    pstr = pstring("#\\s");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#\\s");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -147,8 +146,8 @@ void test_parse_hash()
 
 
     // Test space
-    pstr = pstring("#\\space");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#\\space");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -158,8 +157,8 @@ void test_parse_hash()
     assert(p.value->character == ' ');
 
     // Test tab
-    pstr = pstring("#\\tab");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#\\tab");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -169,8 +168,8 @@ void test_parse_hash()
     assert(p.value->character == '\t');
 
     // Test newline
-    pstr = pstring("#\\newline");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#\\newline");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -180,32 +179,32 @@ void test_parse_hash()
     assert(p.value->character == '\n');
 
     // Test bad bool-looking input
-    pstr = pstring("#r");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#r");
+    init_parser(&p, sstr);
 
     assert(!parse_atom(&p));
     assert(p.error != NO_ERROR);
     assert(p.value == NULL);
 
     // Test early termination of bool-looking input
-    pstr = pstring("#");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#");
+    init_parser(&p, sstr);
 
     assert(!parse_atom(&p));
     assert(p.error != NO_ERROR);
     assert(p.value == NULL);
 
     // Test bad char-looking input
-    pstr = pstring("#\\ta");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#\\ta");
+    init_parser(&p, sstr);
 
     assert(!parse_atom(&p));
     assert(p.error != NO_ERROR);
     assert(p.value == NULL);
 
     // Test early termination of char-looking input
-    pstr = pstring("#\\");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("#\\");
+    init_parser(&p, sstr);
 
     assert(!parse_atom(&p));
     assert(p.error != NO_ERROR);
@@ -215,10 +214,10 @@ void test_parse_hash()
 /* Tests for parsing Scheme's string type */
 void test_parse_string()
 {
-    struct PString *pstr;
+    ScmString *sstr;
     struct Parser p; 
-    pstr = pstring("\"this is \\nsome input\" jpwrijnfpwirj ");
-    init_parser(&p, pstr);
+    sstr = to_scm_string("\"this is \\nsome input\" jpwrijnfpwirj ");
+    init_parser(&p, sstr);
 
     // Check parser struct 
     assert(parse_atom(&p));
@@ -229,7 +228,7 @@ void test_parse_string()
     assert(p.value->type == STRING);
     assert(p.value->string != NULL);
     assert(!is_empty(p.value->string));
-    assert(strcmp(from_vstring(p.value), "this is \\nsome input") == 0);
+    assert(strcmp(from_scm_string(p.value->string), "this is \\nsome input") == 0);
 }
 
 /* Tests for making sure that the list type works properly */

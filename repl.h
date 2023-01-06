@@ -1,12 +1,12 @@
 #ifndef REPL
 #define REPL
-#include "utils.h"
+#include "datatype.h"
 
 /* Data structures */
 
 /* Function definitions */
 
-struct PString *read(void);
+ScmString *read(void);
 void repl();
 
 #endif

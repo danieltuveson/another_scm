@@ -41,14 +41,15 @@ struct List
     struct Value **values;
 };
 
+typedef struct List ScmString;
 
 /* Function definitions */
 
 // /* Creates a scheme list. Returns NULL on failure. */
 struct List *list(void);
 
-/* Adds a value to the list. Returns 1 on success */
-int append(struct List *lst, struct Value *v);
+/* Adds a value to the list. Returns true on success, false otherwise */
+bool append(struct List *lst, struct Value *v);
 
 /* Remove element from the end of the list and return it */
 struct Value *pop(struct List *lst);
@@ -57,9 +58,11 @@ struct Value *pop(struct List *lst);
 void delete_list(struct List *lst);
 
 /* Convert to and from Value strings */
-struct Value *to_vstring(char *str);
-char *from_vstring(struct Value *vstr);
+ScmString *to_scm_string(char *str);
+char *from_scm_string(ScmString *sstr);
 
+/* Create a deep copy of a value and return it */
+struct Value *copy_value(struct Value *v);
 
 /* Utility functions */
 
@@ -76,10 +79,10 @@ static inline bool is_empty(struct List *lst)
 }
 
 /* Sugar for dealing with procs */
-static inline struct List *get_args(struct Value *v)
+static inline struct Value *get_args(struct Value *v)
 {
     if (v->type != PROCEDURE) return NULL;
-    return v->proc->values[0]->list;
+    return v->proc->values[0];
 }
 
 static inline struct Value *get_body(struct Value *v)
@@ -146,8 +149,16 @@ static inline struct Value *vlist(struct List *list)
 static inline struct Value *vproc(struct Value *args, struct Value *body)
 {
     struct Value *v = malloc(sizeof(*v));
+    if (v == NULL) 
+    {
+        return NULL;
+    }
     struct List *proc = list();
-    if (v == NULL || proc == NULL) return NULL;
+    if (proc == NULL) 
+    {
+        free(v);
+        return NULL;
+    }
     v->type = PROCEDURE;
     v->proc = proc;
     append(proc, args);

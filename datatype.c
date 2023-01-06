@@ -7,11 +7,12 @@
 const unsigned int MAX_LIST_CAPACITY = UINT_MAX;
 const unsigned char INIT_LIST_CAPACITY = 8;
 
+/* Forward declarations */
+
 /* Code may rely on GROWTH_FACTOR being 
  * even (or even being 2) to function correctly
  */
 const unsigned int GROWTH_FACTOR = 2;
-
 
 /* Private function definitions */
 
@@ -25,8 +26,9 @@ static int grow_list(struct List *lst);
  */
 static int shrink_list(struct List *lst);
 
+/* Deletes list and all of its contents */
+void delete_list(struct List *lst);
 
-/* Exposed functions */
 struct List *list(void)
 {
     struct List *lst;
@@ -38,6 +40,7 @@ struct List *list(void)
     lst->values = calloc(INIT_LIST_CAPACITY, sizeof(*(lst->values)));
     if (lst->values == NULL)
     {
+        free(lst);
         return NULL;
     }
     lst->size = 0;
@@ -45,18 +48,18 @@ struct List *list(void)
     return lst;
 }
 
-int append(struct List *lst, struct Value *v)
+bool append(struct List *lst, struct Value *v)
 {
     if (lst->size == lst->capacity)
     {
         if (!grow_list(lst))
         {
-            return 0;
+            return false;
         }
     }
     lst->values[lst->size] = v;
     lst->size++;
-    return 1;
+    return true;
 }
 
 struct Value *pop(struct List *lst)
@@ -77,40 +80,54 @@ struct Value *pop(struct List *lst)
     return v;
 }
 
-// Need to update this to handle deleting nested lists. 
+void delete_value(struct Value *v)
+{
+    if (v == NULL) return;
+    switch (v->type)
+    {
+        case LIST:
+            delete_list(v->list);
+            break;
+        case SYMBOL:
+            free(v->symbol);
+            break;
+        case STRING:
+            delete_list(v->string);
+            break;
+        case PROCEDURE:
+            delete_list(v->proc);
+            break;
+        default: // Num, bool, and char
+            break;
+    }
+    free(v);
+}
+
 void delete_list(struct List *lst)
 {
+    if (lst == NULL) return;
     for (unsigned int i = 0; i < lst->size; i++)
     {
-        free(lst->values[i]);
+        delete_value(lst->values[i]);
     }
     free(lst->values);
     free(lst);
 }
 
-/* Copy size elements from src to tgt. Assumes both lists have at least size elements. */
-void copy_values(struct Value **tgt, struct Value **src, unsigned int size)
+/* Shallow copy size elements from src to tgt. Assumes both lists have at least size elements. */
+static void inline copy_values(struct Value **tgt, struct Value **src, unsigned int size)
 {
-    for (unsigned int i = 0; i < size; i++)
-    {
-        tgt[i] = src[i];
-    }
+    for (unsigned int i = 0; i < size; i++) tgt[i] = src[i];
 }
 
 static int grow_list(struct List *lst)
 {
     // If growing the list would cause overflow, then return
-    if (lst->capacity > (MAX_LIST_CAPACITY / GROWTH_FACTOR))
-    {
-        return 0;
-    }
-    unsigned int new_capacity = lst->capacity * GROWTH_FACTOR;
+    if (lst->capacity > (MAX_LIST_CAPACITY / GROWTH_FACTOR)) return 0;
 
+    unsigned int new_capacity = lst->capacity * GROWTH_FACTOR;
     struct Value **values = calloc(new_capacity, sizeof(*values));
-    if (values == NULL)
-    {
-        return 0;
-    }
+    if (values == NULL) return 0;
 
     // Copy over the elements
     copy_values(values, lst->values, lst->size);
@@ -150,28 +167,90 @@ static int shrink_list(struct List *lst)
     return 1;
 }
 
-struct Value *to_vstring(char *str)
+ScmString *to_scm_string(char *str)
 {
-    struct List *lst = list();
+    ScmString *lst = list();
+    if (lst == NULL) return NULL;
+    struct Value *v;
     for (; *str != '\0'; str++)
     {
-        append(lst, vcharacter(*str));
+        v = vcharacter(*str);
+        if (v == NULL) 
+        {
+            delete_list(lst);
+            return NULL;
+        }
+        if (!append(lst, v)) 
+        {
+            delete_value(v);
+            delete_list(lst);
+            return NULL;
+        }
     }
-    return vstring(lst);
+    return lst;
 }
 
-char *from_vstring(struct Value *vstr)
+char *from_scm_string(ScmString *sstr)
 {
-    if (vstr == NULL || vstr->type != STRING)
+    if (sstr == NULL)
     {
         return NULL;
     }
     unsigned int i = 0;
-    char *str = calloc(vstr->string->size + 1, sizeof(char));
-    for (i = 0; i < vstr->string->size; i++)
+    char *str = calloc(sstr->size + 1, sizeof(char));
+    if (str == NULL) return NULL;
+    for (i = 0; i < sstr->size; i++)
     {
-        str[i] = vstr->string->values[i]->character;
+        str[i] = sstr->values[i]->character;
     }
     str[i+1] = '\0';
     return str;
+}
+
+struct Value *copy_value(struct Value *v)
+{
+    if (v == NULL) return NULL;
+
+    struct Value *copy, *args_copy, *body_copy;
+    struct List *lst;
+    switch (v->type)
+    {
+        case LIST:
+            lst = list();
+            if (lst == NULL) return NULL;
+            for (unsigned int i = 0; i < v->list->size; i++)
+            {
+                copy = copy_value(v->list->values[i]);
+                if (copy == NULL) 
+                {
+                    delete_list(lst);
+                    return NULL;
+                }
+                append(lst, copy);
+            }
+            return vlist(lst);
+        case SYMBOL:
+            return vsymbol(v->symbol);
+        case CHAR:
+            return vcharacter(v->character);
+        case NUMBER:
+            return vnumber(v->number);
+        case STRING:
+            return vstring(v->string);
+        case BOOLEAN:
+            return vboolean(v->boolean);
+        case PROCEDURE:
+            args_copy = copy_value(get_args(v));
+            if (args_copy == NULL) 
+            {
+                return NULL;
+            }
+            body_copy = copy_value(get_body(v));
+            if (body_copy == NULL) 
+            {
+                free(args_copy);
+                return NULL;
+            }
+            return vproc(args_copy, body_copy);
+    }
 }

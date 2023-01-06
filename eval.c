@@ -23,6 +23,7 @@ struct Value *checked_eval(struct Namespace *nsp, struct Parser *parser, struct 
     }
     return eval_result;
 }
+
 struct Value *checked_typed_eval(
         struct Namespace *nsp, struct Parser *parser, 
         struct Value *val, enum Type t, enum Error err)
@@ -281,13 +282,13 @@ struct Value *eval_quote(struct Parser *parser, struct List *lst)
 
 struct Value *eval_proc(struct Namespace *nsp, struct Parser *parser, struct List *lst, struct Value *proc)
 {
-    struct List *args;
+    struct Value *args;
     struct Value *body;
     args = get_args(proc);
     body = get_body(proc);
 
     // Must pass an value for each argument
-    if (lst->size - 1 != args->size)
+    if (lst->size - 1 != args->list->size)
     {
         parser->error = INCORRECT_NUMBER_OF_ARGS;
         return NULL;
@@ -298,11 +299,11 @@ struct Value *eval_proc(struct Namespace *nsp, struct Parser *parser, struct Lis
 
     // Evaluate each argument and bind it to the symbol given
     struct Value *arg;
-    for (unsigned int i = 0; i < args->size; i++)
+    for (unsigned int i = 0; i < args->list->size; i++)
     {
         arg = checked_eval(nsp, parser, lst->values[i+1]);
         if (arg == NULL) return NULL;
-        define(child_nsp, args->values[i], arg);
+        define(child_nsp, args->list->values[i], arg);
     }
     return eval(child_nsp, parser, body);
 }
@@ -330,6 +331,59 @@ struct Value *eval_eval(struct Namespace *nsp, struct Parser *parser, struct Lis
     }
     struct Value *v = checked_eval(nsp, parser, lst->values[1]);
     return eval(nsp, parser, v);
+}
+
+struct Value *eval_car(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    if (lst->size != 2)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    struct Value *v = checked_typed_eval(nsp, parser, lst->values[1], LIST, EXPECTED_PAIR);
+    if (v == NULL) 
+    {
+        return NULL;
+    }
+    else if (is_empty(v->list))
+    {
+        parser->error = EXPECTED_PAIR;
+        return NULL;
+    }
+    return copy_value(v->list->values[0]);
+}
+
+struct Value *eval_cdr(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    struct Value *v, *copy;
+    if (lst->size != 2)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    v = checked_typed_eval(nsp, parser, lst->values[1], LIST, EXPECTED_PAIR);
+    if (v == NULL) 
+    {
+        return NULL;
+    }
+    else if (is_empty(v->list))
+    {
+        parser->error = EXPECTED_PAIR;
+        return NULL;
+    }
+    struct List *lst_copy = list();
+    if (lst_copy == NULL) return NULL;
+    for (unsigned int i = 1; i < v->list->size; i++)
+    {
+        copy = copy_value(v->list->values[i]);
+        if (copy == NULL) 
+        {
+            delete_list(lst_copy);
+            return NULL;
+        }
+        append(lst_copy, copy);
+    }
+    return vlist(lst_copy);
 }
 
 
@@ -422,6 +476,14 @@ struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct Lis
     else if (match("eval"))
     {
         return eval_eval(nsp, parser, lst);
+    }
+    else if (match("car"))
+    {
+        return eval_car(nsp, parser, lst);
+    }
+    else if (match("cdr"))
+    {
+        return eval_cdr(nsp, parser, lst);
     }
     else
     {

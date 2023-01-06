@@ -11,34 +11,36 @@
 
 
 /* Read-Eval-Print Loop for Scheme interpreter */
-struct PString *read(void)
+ScmString *read(void)
 {
-    unsigned int i, buff_size, parencount;
-    char c, *buff;
-    buff_size = 2000;
+    unsigned int i, /*buff_size,*/ parencount;
+    char c; //, *buff;
+    // buff_size = 2000;
     parencount = 0;
-    buff = calloc(buff_size, sizeof(char));
+    // buff = calloc(buff_size, sizeof(char));
     c = fgetc(stdin);
 
+    ScmString *sstr = list();
     for (i = 0; !(c == '\n' && parencount == 0); 
             i++, c = fgetc(stdin))
     {
         if (c == EOF)
         {
-            putchar('\n');
+            printf("\nexiting scheme\n");
             exit(0);
         }
-        if (i == buff_size)
-        {
-            // TODO: get rid of arbitrary limit
-            printf("Exceeded maximum size of %d"
-                    " characters for command line input\n", buff_size);
-            return NULL;
-        }
-        else
-        {
-            buff[i] = c;
-        }
+        // if (i == buff_size)
+        // {
+        //     // TODO: get rid of arbitrary limit
+        //     printf("Exceeded maximum size of %d"
+        //             " characters for command line input\n", buff_size);
+        //     return NULL;
+        // }
+        append(sstr, vcharacter(c));
+        // else
+        // {
+        //     buff[i] = c;
+        // }
 
         if (c == '(')
         {
@@ -50,11 +52,7 @@ struct PString *read(void)
         }
     }
 
-    struct PString *pstr = malloc(sizeof(*pstr));
-    pstr->length = i;
-    pstr->string = buff;
-
-    return pstr;
+    return sstr;
 }
 
 void print(struct Value *v, int newline)
@@ -78,7 +76,7 @@ void print(struct Value *v, int newline)
         printf(")");
         break;
     case STRING:
-        printf("\"%s\"", from_vstring(v));
+        printf("\"%s\"", from_scm_string(v->string));
         break;
     case SYMBOL:
         printf("%s", v->symbol);
@@ -109,7 +107,7 @@ void print(struct Value *v, int newline)
 void repl()
 {
     printf("Entering Scheme interpreter. Type Ctrl+D to exit\n");
-    struct PString *pstr;
+    ScmString *sstr;
     struct Parser p;
     struct Namespace nsp;
     struct Value *v;
@@ -119,8 +117,8 @@ void repl()
     while (1)
     {
         printf("> ");
-        pstr = read();
-        init_parser(&p, pstr);
+        sstr = read();
+        init_parser(&p, sstr);
         parse(&p);
         if (p.error != NO_ERROR)
         {

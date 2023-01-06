@@ -5,14 +5,14 @@
 #include "parser.h"
 
 
-void init_parser(struct Parser *parser, struct PString *pstr)
+void init_parser(struct Parser *parser, ScmString *sstr)
 {
     parser->error = NO_ERROR;
     parser->value = NULL;
     parser->row = 1;
     parser->column = 1;
     parser->index = 0;
-    parser->input = pstr;
+    parser->input = sstr;
 }
 
 
