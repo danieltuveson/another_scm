@@ -1,2 +1,6 @@
-(define x 5)
-x
+;;; Standard Scheme functions 
+
+(define my-not
+  (lambda (x)
+    (if x #f #t)))
+

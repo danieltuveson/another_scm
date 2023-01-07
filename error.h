@@ -27,6 +27,7 @@ enum Error
     INCORRECT_NUMBER_OF_ARGS,
     SYMBOL_NOT_BOUND,
     UNDEFINED,
+    CANT_OPEN_FILE,
 
     /* type errors */
     EXPECTED_SYMBOL,
@@ -86,6 +87,8 @@ static inline char *parse_error_to_string(enum Error e)
              return "symbol is not bound to a value";
         case UNDEFINED:
              return "expression returned undefined";
+        case CANT_OPEN_FILE:
+             return "could not open file";
 
         /* type errors */
         case EXPECTED_SYMBOL:

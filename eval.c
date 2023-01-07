@@ -7,6 +7,7 @@
 #include "parser.h"
 #include "datatype.h"
 #include "namespace.h"
+#include "file.h"
 
 /* Does boilerplate error checking for when we expect eval to return a value */
 struct Value *checked_eval(struct Namespace *nsp, struct Parser *parser, struct Value *val)
@@ -386,6 +387,36 @@ struct Value *eval_cdr(struct Namespace *nsp, struct Parser *parser, struct List
     return vlist(lst_copy);
 }
 
+struct Value *eval_load(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    struct Value *v;
+    if (lst->size != 2)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    v = checked_typed_eval(nsp, parser, lst->values[1], STRING, EXPECTED_STRING);
+    if (v == NULL)
+    {
+        return NULL;
+    }
+    ScmString *sstr = read_file(from_scm_string(v->string));
+    if (sstr == NULL)
+    {
+        parser->error = CANT_OPEN_FILE;
+        return NULL;
+    }
+    struct Parser p;
+    init_parser(&p, sstr);
+    parse(&p);
+    if (p.error != NO_ERROR)
+    {
+        parser->error = p.error;
+        return NULL;
+    }
+    return eval(nsp, parser, p.value);
+}
+
 
 struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct List *lst)
 {
@@ -484,6 +515,10 @@ struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct Lis
     else if (match("cdr"))
     {
         return eval_cdr(nsp, parser, lst);
+    }
+    else if (match("load"))
+    {
+        return eval_load(nsp, parser, lst);
     }
     else
     {

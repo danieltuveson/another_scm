@@ -57,6 +57,9 @@ struct Value *pop(struct List *lst);
 /* Deletes a list and all of its elements */
 void delete_list(struct List *lst);
 
+/* Deletes a value */
+void delete_value(struct Value *v);
+
 /* Convert to and from Value strings */
 ScmString *to_scm_string(char *str);
 char *from_scm_string(ScmString *sstr);
