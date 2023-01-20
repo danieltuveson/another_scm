@@ -51,12 +51,12 @@ void define(struct Namespace *nsp, struct Value *symbol, struct Value *val);
 /* helper functions for handling bindings */
 static inline struct Value *get_name(Binding *b)
 {
-    return b->list->values[0];
+    return list_lookup(b->list, 0);
 }
 
 static inline struct Value *get_value(Binding *b)
 {
-    return b->list->values[1];
+    return list_lookup(b->list, 1);
 }
 
 static inline void set_value(Binding *b, struct Value *v)

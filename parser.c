@@ -262,15 +262,26 @@ err:
 
 int parse(struct Parser *parser)
 {
+    spaces(parser);
     if (has_next(parser) && peek(parser) == ';')
     {
         // just ignores comments
         while (has_next(parser) && (peek(parser) != '\n')) next(parser);
+        spaces(parser);
         return parse(parser);
     }
     else if (has_next(parser) && peek(parser) == '(')
     {
-        return (parse_list(parser) ? PARSE_SUCCESS : PARSE_FAILURE);
+        if (parse_list(parser))
+        { 
+            spaces(parser);
+            return PARSE_SUCCESS;
+        }
+        else 
+        {
+            spaces(parser);
+            return PARSE_FAILURE;
+        }
     }
     else if (parse_atom(parser))
     {

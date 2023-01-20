@@ -8,6 +8,7 @@
 #include "datatype.h"
 #include "namespace.h"
 #include "file.h"
+#include "print.h"
 
 /* Does boilerplate error checking for when we expect eval to return a value */
 struct Value *checked_eval(struct Namespace *nsp, struct Parser *parser, struct Value *val)
@@ -77,7 +78,7 @@ void eval_define(struct Namespace *nsp, struct Parser *parser, struct List *lst)
     struct Value *name = list_lookup(lst, 1);
     if (name->type != SYMBOL)
     {
-        parser->error = EXPECTED_SYMBOL;
+        parser->error = EXPECTED_LIST_OR_SYMBOL;
         return;
     }
 
@@ -86,7 +87,7 @@ void eval_define(struct Namespace *nsp, struct Parser *parser, struct List *lst)
 
     struct Value *val = checked_eval(nsp, parser, list_lookup(lst, 2));
     if (val == NULL) return;
-
+    
     // Define with actual value
     define(nsp, name, val);
 }
@@ -163,6 +164,53 @@ struct Value *eval_if(struct Namespace *nsp, struct Parser *parser, struct List 
     }
 }
 
+struct Value *eval_eq(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    if (lst->size != 3) 
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    struct Value *arg1, *arg2;
+    arg1 = checked_eval(nsp, parser, list_lookup(lst, 1));
+    if (arg1 == NULL) return NULL;
+
+    arg2 = checked_eval(nsp, parser, list_lookup(lst, 2));
+    if (arg2 == NULL) return NULL;
+
+    // If types not equal, know it's not eq
+    if (arg1->type != arg2->type)
+    {
+        return vboolean(false);
+    }
+    // Basing this on the behavior of Chez Scheme
+    switch (arg1->type)
+    {
+        case CHAR:
+            return vboolean(arg1->character == arg2->character);
+        // Numbers are just doubles so won't match other Schemes like Chez
+        case NUMBER:
+            return vboolean(arg1->number == arg2->number);
+        case STRING:
+            return vboolean(arg1->string == arg2->string);
+        case BOOLEAN:
+            return vboolean(arg1->boolean == arg2->boolean);
+        case PROCEDURE:
+            return vboolean(arg1->proc == arg2->proc);
+        case LIST:
+            if (is_empty(arg1->list) && is_empty(arg2->list))
+            {
+                return vboolean(true);
+            }
+            else
+            {
+                return vboolean(arg1->list == arg2->list);
+            }
+        case SYMBOL:
+            return vboolean(strcmp(arg1->symbol, arg2->symbol) == 0);
+    }
+}
+
 struct Value *eval_lambda(struct Parser *parser, struct List *lst)
 {
     if (lst->size != 3)
@@ -173,20 +221,34 @@ struct Value *eval_lambda(struct Parser *parser, struct List *lst)
     struct Value *args, *body;
     args = list_lookup(lst, 1);
     body = list_lookup(lst, 2);
-    if (args->type != LIST)
+    if (args->type == LIST)
     {
-        parser->error = EXPECTED_LIST;
+        for (unsigned int i = 0; i < args->list->size; i++)
+        {
+            if (list_lookup(args->list, i)->type != SYMBOL)
+            {
+                parser->error = EXPECTED_SYMBOL;
+                return NULL;
+            }
+        }
+        for (unsigned int i = 0; i < args->list->size; i++)
+        {
+            for (unsigned int j = i + 1; j < args->list->size; j++)
+            {
+                // if (args->list->value[i]->symbol args->list
+            }
+        }
+        return vproc(args, body);
+    }
+    else if (args->type == SYMBOL)
+    {
+        return vproc(args, body);
+    }
+    else
+    {
+        parser->error = EXPECTED_LIST_OR_SYMBOL;
         return NULL;
     }
-    for (unsigned int i = 0; i < args->list->size; i++)
-    {
-        if (args->list->values[i]->type != SYMBOL)
-        {
-            parser->error = EXPECTED_SYMBOL;
-            return NULL;
-        }
-    }
-    return vproc(args, body);
 }
 
 enum CompareOp 
@@ -210,7 +272,7 @@ struct Value *eval_eq_op(struct Namespace *nsp, struct Parser *parser, struct Li
 
     for (unsigned int i = 1; i < lst->size; i++)
     {
-        v = checked_typed_eval(nsp, parser, lst->values[i], NUMBER, EXPECTED_NUMBER);
+        v = checked_typed_eval(nsp, parser, list_lookup(lst, i), NUMBER, EXPECTED_NUMBER);
         if (v == NULL) return NULL;
         if ((op == EQ && i != 1 && !(prev == v->number)) ||
                 (op == LEQ && !(prev <= v->number)) ||
@@ -225,28 +287,6 @@ struct Value *eval_eq_op(struct Namespace *nsp, struct Parser *parser, struct Li
     return vboolean(true);
 }
 
-struct Value *eval_not(struct Namespace *nsp, struct Parser *parser, struct List *lst)
-{
-    if (lst->size != 2)
-    {
-        parser->error = INCORRECT_NUMBER_OF_ARGS;
-        return NULL;
-    }
-    struct Value *v = to_bool(nsp, parser, lst->values[1]);
-    if (v == NULL) 
-    {
-        return NULL;
-    }
-    else if (v->boolean == false)
-    {
-        return vboolean(true);
-    }
-    else
-    {
-        return vboolean(false);
-    }
-}
-
 struct Value *eval_bin_bool(struct Namespace *nsp, struct Parser *parser, struct List *lst, bool init)
 {
     bool is_and, is_or;
@@ -256,7 +296,7 @@ struct Value *eval_bin_bool(struct Namespace *nsp, struct Parser *parser, struct
     struct Value *v;
     for (unsigned int i = 1; i < lst->size; i++)
     {
-        v = to_bool(nsp, parser, lst->values[i]);
+        v = to_bool(nsp, parser, list_lookup(lst, i));
         if (v == NULL) return NULL;
 
         if ((v->boolean == true) && is_or)
@@ -278,7 +318,7 @@ struct Value *eval_quote(struct Parser *parser, struct List *lst)
         parser->error = INCORRECT_NUMBER_OF_ARGS;
         return NULL;
     }
-    return lst->values[1];
+    return list_lookup(lst, 1);
 }
 
 struct Value *eval_proc(struct Namespace *nsp, struct Parser *parser, struct List *lst, struct Value *proc)
@@ -289,7 +329,7 @@ struct Value *eval_proc(struct Namespace *nsp, struct Parser *parser, struct Lis
     body = get_body(proc);
 
     // Must pass an value for each argument
-    if (lst->size - 1 != args->list->size)
+    if ((args->type == LIST) && (lst->size - 1 != args->list->size))
     {
         parser->error = INCORRECT_NUMBER_OF_ARGS;
         return NULL;
@@ -300,11 +340,27 @@ struct Value *eval_proc(struct Namespace *nsp, struct Parser *parser, struct Lis
 
     // Evaluate each argument and bind it to the symbol given
     struct Value *arg;
-    for (unsigned int i = 0; i < args->list->size; i++)
+
+    if (args->type == LIST)
     {
-        arg = checked_eval(nsp, parser, lst->values[i+1]);
-        if (arg == NULL) return NULL;
-        define(child_nsp, args->list->values[i], arg);
+        for (unsigned int i = 0; i < args->list->size; i++)
+        {
+            arg = checked_eval(nsp, parser, list_lookup(lst, i+1));
+            if (arg == NULL) return NULL;
+            define(child_nsp, list_lookup(args->list, i), arg);
+        }
+    }
+    else if (args->type == SYMBOL)
+    {
+        struct List *lst_args = list();
+        if (lst_args == NULL) return NULL;
+        for (unsigned int i = 1; i < lst->size; i++)
+        {
+            arg = checked_eval(nsp, parser, list_lookup(lst, i));
+            if (arg == NULL) return NULL;
+            append(lst_args, arg);
+        }
+        define(child_nsp, args, vlist(lst_args));
     }
     return eval(child_nsp, parser, body);
 }
@@ -316,8 +372,9 @@ struct Value *eval_begin(struct Namespace *nsp, struct Parser *parser, struct Li
     struct Value *v = NULL;
     for (unsigned int i = 1; i < lst->size; i++)
     {
-        v = checked_eval(nsp, parser, lst->values[i]);
-        if (v == NULL) return NULL;
+        v = eval(nsp, parser, list_lookup(lst, i));
+
+        if (parser->error != NO_ERROR) return NULL;
     }
     return v;
 }
@@ -330,7 +387,7 @@ struct Value *eval_eval(struct Namespace *nsp, struct Parser *parser, struct Lis
         parser->error = INCORRECT_NUMBER_OF_ARGS;
         return NULL;
     }
-    struct Value *v = checked_eval(nsp, parser, lst->values[1]);
+    struct Value *v = checked_eval(nsp, parser, list_lookup(lst, 1));
     return eval(nsp, parser, v);
 }
 
@@ -341,7 +398,7 @@ struct Value *eval_car(struct Namespace *nsp, struct Parser *parser, struct List
         parser->error = INCORRECT_NUMBER_OF_ARGS;
         return NULL;
     }
-    struct Value *v = checked_typed_eval(nsp, parser, lst->values[1], LIST, EXPECTED_PAIR);
+    struct Value *v = checked_typed_eval(nsp, parser, list_lookup(lst, 1), LIST, EXPECTED_PAIR);
     if (v == NULL) 
     {
         return NULL;
@@ -351,7 +408,7 @@ struct Value *eval_car(struct Namespace *nsp, struct Parser *parser, struct List
         parser->error = EXPECTED_PAIR;
         return NULL;
     }
-    return copy_value(v->list->values[0]);
+    return copy_value(list_lookup(v->list, 0));
 }
 
 struct Value *eval_cdr(struct Namespace *nsp, struct Parser *parser, struct List *lst)
@@ -362,7 +419,7 @@ struct Value *eval_cdr(struct Namespace *nsp, struct Parser *parser, struct List
         parser->error = INCORRECT_NUMBER_OF_ARGS;
         return NULL;
     }
-    v = checked_typed_eval(nsp, parser, lst->values[1], LIST, EXPECTED_PAIR);
+    v = checked_typed_eval(nsp, parser, list_lookup(lst, 1), LIST, EXPECTED_PAIR);
     if (v == NULL) 
     {
         return NULL;
@@ -376,7 +433,7 @@ struct Value *eval_cdr(struct Namespace *nsp, struct Parser *parser, struct List
     if (lst_copy == NULL) return NULL;
     for (unsigned int i = 1; i < v->list->size; i++)
     {
-        copy = copy_value(v->list->values[i]);
+        copy = copy_value(list_lookup(v->list, i));
         if (copy == NULL) 
         {
             delete_list(lst_copy);
@@ -387,6 +444,48 @@ struct Value *eval_cdr(struct Namespace *nsp, struct Parser *parser, struct List
     return vlist(lst_copy);
 }
 
+struct Value *eval_cons(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    struct Value *car, *cdr;
+    if (lst->size != 3)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    car = checked_eval(nsp, parser, list_lookup(lst, 1));
+    if (car == NULL) return NULL;
+    cdr = checked_typed_eval(nsp, parser, list_lookup(lst, 2), LIST, EXPECTED_LIST);
+    if (cdr == NULL) return NULL;
+    struct List *l;
+    l = list();
+    append(l, car);
+    for (unsigned int i = 0; i < cdr->list->size; i++) 
+    {
+        append(l, list_lookup(cdr->list, i));
+    }
+    return vlist(l);
+}
+
+void eval_set(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    struct Value *name, *val;
+    if (lst->size != 3)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return;
+    }
+    name = list_lookup(lst, 1);
+    if (name->type != SYMBOL)
+    {
+        parser->error = EXPECTED_SYMBOL;
+        return;
+    }
+    val = checked_eval(nsp, parser, list_lookup(lst, 2));
+    if (val == NULL) return;
+
+    define(nsp, name, val);
+}
+
 struct Value *eval_load(struct Namespace *nsp, struct Parser *parser, struct List *lst)
 {
     struct Value *v;
@@ -395,7 +494,7 @@ struct Value *eval_load(struct Namespace *nsp, struct Parser *parser, struct Lis
         parser->error = INCORRECT_NUMBER_OF_ARGS;
         return NULL;
     }
-    v = checked_typed_eval(nsp, parser, lst->values[1], STRING, EXPECTED_STRING);
+    v = checked_typed_eval(nsp, parser, list_lookup(lst, 1), STRING, EXPECTED_STRING);
     if (v == NULL)
     {
         return NULL;
@@ -406,17 +505,113 @@ struct Value *eval_load(struct Namespace *nsp, struct Parser *parser, struct Lis
         parser->error = CANT_OPEN_FILE;
         return NULL;
     }
+    // print(vstring(sstr), true);
     struct Parser p;
     init_parser(&p, sstr);
-    parse(&p);
-    if (p.error != NO_ERROR)
+    while (has_next(&p))
     {
-        parser->error = p.error;
-        return NULL;
+        parse(&p);
+        // print(p.value, true);
+        // if (p.value == NULL) { printf("p is null\n"); } else { printf("p is not null\n");}
+        // print(p.value, true);
+        if (p.error != NO_ERROR)
+        {
+            parser->error = p.error;
+            return NULL;
+        }
+        v = eval(nsp, parser, p.value);
+        if (parser->error != NO_ERROR)
+        {
+            return NULL;
+        }
+        // printf("...evaling...\n");
     }
     return eval(nsp, parser, p.value);
 }
 
+void eval_display(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    struct Value *v;
+    if (lst->size != 2)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return;
+    }
+    v = checked_eval(nsp, parser, list_lookup(lst, 1));
+    if (v != NULL) 
+    {
+        print(v, true);
+    }
+}
+
+struct Value *eval_is_type(struct Namespace *nsp, struct Parser *parser, struct List *lst, enum Type t)
+{
+    if (lst->size != 2)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    struct Value *v = checked_eval(nsp, parser, list_lookup(lst, 1));
+    if (v == NULL) return NULL;
+    return v == NULL ? NULL : vboolean(v->type == t);
+}
+
+static inline struct Value *eval_is_boolean(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    return eval_is_type(nsp, parser, lst, BOOLEAN);
+}
+
+static inline struct Value *eval_is_symbol(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    return eval_is_type(nsp, parser, lst, SYMBOL);
+}
+
+static inline struct Value *eval_is_char(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    return eval_is_type(nsp, parser, lst, CHAR);
+}
+
+static inline struct Value *eval_is_procedure(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    return eval_is_type(nsp, parser, lst, PROCEDURE);
+}
+
+static inline struct Value *eval_is_list(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    return eval_is_type(nsp, parser, lst, LIST);
+}
+
+static inline struct Value *eval_is_number(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    return eval_is_type(nsp, parser, lst, NUMBER);
+}
+
+static inline struct Value *eval_is_string(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    return eval_is_type(nsp, parser, lst, NUMBER);
+}
+
+struct Value *eval_is_pair(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+{
+    if (lst->size != 2)
+    {
+        parser->error = INCORRECT_NUMBER_OF_ARGS;
+        return NULL;
+    }
+    struct Value *v = checked_typed_eval(nsp, parser, list_lookup(lst, 1), LIST, EXPECTED_PAIR);
+    if (v == NULL) 
+    {
+        return NULL;
+    }
+    else if (is_empty(v->list))
+    {
+        return vboolean(false);
+    }
+    else
+    {
+        return vboolean(v->type == LIST);
+    }
+}
 
 struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct List *lst)
 {
@@ -448,6 +643,11 @@ struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct Lis
         eval_define(nsp, parser, lst);
         return NULL;
     }
+    else if (match("set!"))
+    {
+        eval_set(nsp, parser, lst);
+        return NULL;
+    }
     else if (match("+"))
     {
         return eval_add(nsp, parser, lst);
@@ -475,10 +675,6 @@ struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct Lis
     else if (match("<="))
     {
         return eval_eq_op(nsp, parser, lst, LEQ);
-    }
-    else if (match("not"))
-    {
-        return eval_not(nsp, parser, lst);
     }
     else if (match("and"))
     {
@@ -516,9 +712,54 @@ struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct Lis
     {
         return eval_cdr(nsp, parser, lst);
     }
+    else if (match ("cons"))
+    {
+        return eval_cons(nsp, parser, lst);
+    }
+    else if (match("eq?"))
+    {
+        return eval_eq(nsp, parser, lst);
+    }
+    else if (match("display"))
+    {
+        eval_display(nsp, parser, lst);
+        return NULL;
+    }
     else if (match("load"))
     {
         return eval_load(nsp, parser, lst);
+    }
+    else if (match("boolean?"))
+    {
+        return eval_is_boolean(nsp, parser, lst);
+    }
+    else if (match("symbol?"))
+    {
+        return eval_is_symbol(nsp, parser, lst);
+    }
+    else if (match("char?"))
+    {
+        return eval_is_char(nsp, parser, lst);
+    }
+    else if (match("procedure?"))
+    {
+        return eval_is_procedure(nsp, parser, lst);
+    }
+    else if (match("list?"))
+    {
+        return eval_is_list(nsp, parser, lst);
+    }
+    else if (match("number?"))
+    {
+        return eval_is_number(nsp, parser, lst);
+    }
+    else if (match("string?"))
+    {
+        return eval_is_string(nsp, parser, lst);
+    }
+    else if (match("pair?"))
+    {
+        return eval_is_pair(nsp, parser, lst);
     }
     else
     {
@@ -531,7 +772,11 @@ struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct Lis
 
 struct Value *eval(struct Namespace *nsp, struct Parser *parser, struct Value *val)
 {
-    if (val == NULL) return NULL;
+    if (val == NULL) 
+    {
+        parser->error = CANT_EVAL_UNDEF;
+        return NULL;
+    }
     switch (val->type)
     {
         case LIST:

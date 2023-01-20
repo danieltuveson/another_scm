@@ -28,6 +28,7 @@ enum Error
     SYMBOL_NOT_BOUND,
     UNDEFINED,
     CANT_OPEN_FILE,
+    CANT_EVAL_UNDEF,
 
     /* type errors */
     EXPECTED_SYMBOL,
@@ -37,7 +38,8 @@ enum Error
     EXPECTED_PROC,
     EXPECTED_STRING,
     EXPECTED_LIST,
-    EXPECTED_PAIR
+    EXPECTED_PAIR,
+    EXPECTED_LIST_OR_SYMBOL
 };
 
 /* Convert Error to friendly error message */
@@ -89,6 +91,8 @@ static inline char *parse_error_to_string(enum Error e)
              return "expression returned undefined";
         case CANT_OPEN_FILE:
              return "could not open file";
+        case CANT_EVAL_UNDEF:
+             return "cannot evaluate undefined";
 
         /* type errors */
         case EXPECTED_SYMBOL:
@@ -107,6 +111,8 @@ static inline char *parse_error_to_string(enum Error e)
              return "expected a list";
         case EXPECTED_PROC:
              return "expected a procedure";
+        case EXPECTED_LIST_OR_SYMBOL:
+             return "expected a list or a symbol";
     }
 }
 
