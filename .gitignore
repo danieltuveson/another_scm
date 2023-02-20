@@ -1,7 +1,7 @@
 .DS_Store
 *.swp
 *.o
-*.scm
+scratch.scm
 scheme
 scheme_debug
 test

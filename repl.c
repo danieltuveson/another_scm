@@ -53,6 +53,8 @@ void repl()
 
     init_nsp(&nsp, NULL);
 
+    // Load standard library functions at the top level
+    load(&nsp, &p, "load.scm");
     while (1)
     {
         printf("> ");

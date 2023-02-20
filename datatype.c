@@ -207,6 +207,11 @@ char *from_scm_string(ScmString *sstr)
     return str;
 }
 
+void delete_scm_string(ScmString *sstr)
+{
+    delete_list(sstr);
+}
+
 struct Value *copy_value(struct Value *v)
 {
     if (v == NULL) return NULL;

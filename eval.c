@@ -613,6 +613,66 @@ struct Value *eval_is_pair(struct Namespace *nsp, struct Parser *parser, struct 
     }
 }
 
+
+/* Integer procedures */
+
+// Helper function for evaluating single argument numeric functions
+// struct Value *eval_n_numbers(struct Namespace *nsp, struct Parser *parser, struct List *lst, unsigned long n)
+// {
+//     if (lst->size != (n - 1))
+//     {
+//         parser->error = INCORRECT_NUMBER_OF_ARGS;
+//         return NULL;
+//     }
+//     struct Value *v = checked_typed_eval(nsp, parser, list_lookup(lst, 1), NUMBER, EXPECTED_NUMBER);
+//     return v;
+// }
+// 
+// struct Value *eval_(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+// {
+//     if (!eval_n_numbers(nsp, parser, lst, 1)) return NULL;
+// 
+// }
+// 
+// 
+// 
+// 
+// 
+// /* Character procedures */
+// struct Value *eval_char_integer(struct Namespace *nsp, struct Parser *parser, struct List *lst)
+// {
+//     if (lst->size != 1)
+//     {
+//         parser->error = INCORRECT_NUMBER_OF_ARGS;
+//         return NULL;
+//     }
+//     struct Value *v = checked_typed_eval(nsp, parser, list_lookup(lst, 1), CHAR, EXPECTED_CHAR);
+//     if (v == NULL)
+//     {
+//         return NULL;
+//     }
+// }
+
+struct InternalFunction
+{
+    char *name;
+    struct Value (*function_ptr)(struct Namespace*, struct Parser*, struct List*);
+};
+
+// Register an internal function
+struct InternalFunction *register_function(
+        char *fun_name, 
+        struct Namespace *nsp,
+        struct Value (*function_ptr)(struct Namespace*, struct Parser*, struct List*))
+{
+    define(nsp, vsymbol(fun_name), NULL);
+    struct InternalFunction *it = malloc(sizeof(*it));
+    it->name = fun_name;
+    it->function_ptr = function_ptr;
+    return it;
+}
+
+
 struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct List *lst)
 {
 #define match(name) (strcmp(first->symbol, (name)) == 0)
@@ -650,6 +710,7 @@ struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct Lis
     }
     else if (match("+"))
     {
+        define(nsp, vsymbol("+"), NULL);
         return eval_add(nsp, parser, lst);
     }
     else if (match("-"))
@@ -768,6 +829,14 @@ struct Value *eval_list(struct Namespace *nsp, struct Parser *parser, struct Lis
         return eval_proc(nsp, parser, lst, proc);
     }
 #undef match
+}
+
+void load(struct Namespace *nsp, struct Parser *p, char *filename)
+{
+    struct List *l = list();
+    append(l, vsymbol("load"));
+    append(l, vstring(to_scm_string(filename)));
+    eval_load(nsp, p, l);
 }
 
 struct Value *eval(struct Namespace *nsp, struct Parser *parser, struct Value *val)

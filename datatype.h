@@ -60,6 +60,11 @@ void delete_list(struct List *lst);
 /* Deletes a value */
 void delete_value(struct Value *v);
 
+static inline void delete_scm_string(ScmString *sstr)
+{
+    delete_list(sstr);
+}
+
 /* Convert to and from Value strings */
 ScmString *to_scm_string(char *str);
 char *from_scm_string(ScmString *sstr);

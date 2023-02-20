@@ -22,7 +22,7 @@ int parse_string(struct Parser *parser)
 {
     struct List *lst = list();
     char c, prevc;
-    prevc = 'i'; // choosing a random non-escapy-y char for initialization
+    prevc = 'i'; // choosing a random non-escape-y char for initialization
 
     while (has_next(parser))
     {
